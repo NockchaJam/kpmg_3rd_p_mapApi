@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
-const Map = ({ onLocationSelect, radius }) => {
+const Map = ({ onLocationSelect, radius, selectedType }) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const storeMarkers = useRef([]);
@@ -18,6 +18,24 @@ const Map = ({ onLocationSelect, radius }) => {
     }
   }, []);
 
+  // 좌표로부터 주소를 얻는 함수
+  function getAddressFromCoordinates(lat, lng) {
+    const geocoder = new window.google.maps.Geocoder();
+    const location = { lat, lng };
+
+    geocoder.geocode({ location: location }, (results, status) => {
+      if (status === 'OK' && results[0]) {
+        const roadAddress = results.find(result => 
+          result.types.includes('route') || result.types.includes('street_address')
+        ) || results[0];
+
+        console.log('도로명 주소:', roadAddress.formatted_address);
+      } else {
+        console.error('Reverse geocode was not successful for the following reason:', status);
+      }
+    });
+  }
+
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
 
@@ -27,6 +45,9 @@ const Map = ({ onLocationSelect, radius }) => {
     });
 
     mapInstance.current = initMap;
+
+    // 테스트를 위한 주제 좌표로 도로명 주소 가져오기
+    getAddressFromCoordinates(37.5665, 126.9780);
 
     const clickListener = initMap.addListener('click', (event) => {
       clearCurrentMarkerAndCircle();
@@ -57,7 +78,7 @@ const Map = ({ onLocationSelect, radius }) => {
       const request = {
         location: event.latLng,
         radius: radius,
-        type: ['convenience_store'],
+        type: selectedType,
       };
 
       service.nearbySearch(request, (results, status) => {
@@ -82,10 +103,15 @@ const Map = ({ onLocationSelect, radius }) => {
       };
 
       const geocoder = new window.google.maps.Geocoder();
+      // 클릭한 위치의 좌표를 주소로 변환
       geocoder.geocode({ location: location }, (results, status) => {
         if (status === 'OK' && results[0]) {
+          const roadAddress = results.find(result => 
+            result.types.includes('route') || result.types.includes('street_address')
+          ) || results[0];
+
           onLocationSelect({
-            address: results[0].formatted_address,
+            address: roadAddress.formatted_address,
             coordinates: location,
             radius: radius
           });
@@ -97,37 +123,17 @@ const Map = ({ onLocationSelect, radius }) => {
       window.google.maps.event.removeListener(clickListener);
       clearCurrentMarkerAndCircle();
     };
-  }, [clearCurrentMarkerAndCircle, radius, onLocationSelect]);
+  }, [clearCurrentMarkerAndCircle, radius, onLocationSelect, selectedType]);
 
-  const handleRadiusChange = useCallback((e) => {
-    const newRadius = Number(e.target.value);
-    e.preventDefault();
-
+  useEffect(() => {
     if (currentCircle.current) {
-      currentCircle.current.setRadius(newRadius);
-
-      const position = currentMarker.current.getPosition();
-      const location = {
-        lat: position.lat(),
-        lng: position.lng()
-      };
-
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ location: location }, (results, status) => {
-        if (status === 'OK' && results[0]) {
-          onLocationSelect({
-            address: results[0].formatted_address,
-            coordinates: location,
-            radius: newRadius
-          });
-        }
-      });
+      currentCircle.current.setRadius(radius);
     }
-  }, [onLocationSelect]);
+  }, [radius]);
 
   return (
     <div>
-      <div ref={mapRef} style={{ width: '100%', height: '90vh' }} />
+      <div ref={mapRef} style={{ width: '100%', height: '100vh' }} />
     </div>
   );
 };
