@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 
 const Map = ({ onLocationSelect, radius, selectedType }) => {
   const mapRef = useRef(null);
@@ -18,24 +18,6 @@ const Map = ({ onLocationSelect, radius, selectedType }) => {
     }
   }, []);
 
-  // 좌표로부터 주소를 얻는 함수
-  function getAddressFromCoordinates(lat, lng) {
-    const geocoder = new window.google.maps.Geocoder();
-    const location = { lat, lng };
-
-    geocoder.geocode({ location: location }, (results, status) => {
-      if (status === 'OK' && results[0]) {
-        const roadAddress = results.find(result => 
-          result.types.includes('route') || result.types.includes('street_address')
-        ) || results[0];
-
-        console.log('도로명 주소:', roadAddress.formatted_address);
-      } else {
-        console.error('Reverse geocode was not successful for the following reason:', status);
-      }
-    });
-  }
-
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
 
@@ -45,9 +27,6 @@ const Map = ({ onLocationSelect, radius, selectedType }) => {
     });
 
     mapInstance.current = initMap;
-
-    // 테스트를 위한 주제 좌표로 도로명 주소 가져오기
-    getAddressFromCoordinates(37.5665, 126.9780);
 
     const clickListener = initMap.addListener('click', (event) => {
       clearCurrentMarkerAndCircle();
@@ -103,7 +82,6 @@ const Map = ({ onLocationSelect, radius, selectedType }) => {
       };
 
       const geocoder = new window.google.maps.Geocoder();
-      // 클릭한 위치의 좌표를 주소로 변환
       geocoder.geocode({ location: location }, (results, status) => {
         if (status === 'OK' && results[0]) {
           const roadAddress = results.find(result => 
