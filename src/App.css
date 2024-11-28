@@ -78,4 +78,98 @@
     left: 0;
     width: 100%;
   }
+}
+
+.recent-locations {
+  margin-top: 20px;
+  padding: 10px;
+}
+
+.location-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.location-item {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.location-item h4 {
+  margin: 0 0 5px 0;
+  font-size: 14px;
+}
+
+.location-item p {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.search-section {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.search-steps {
+  margin: 20px 0;
+}
+
+.step {
+  margin-bottom: 20px;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.step-number {
+  background-color: #007bff;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-size: 14px;
+}
+
+.step-title {
+  font-weight: bold;
+}
+
+.step-content {
+  padding-left: 34px;
+}
+
+.help-text {
+  color: #666;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.search-button {
+  width: 100%;
+  padding: 10px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-top: 10px;
+}
+
+.search-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.search-button:hover:not(:disabled) {
+  background-color: #0056b3;
 } 
