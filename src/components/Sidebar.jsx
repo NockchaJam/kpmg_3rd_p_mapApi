@@ -2,34 +2,36 @@ import { useState, useEffect } from 'react';
 
 const Sidebar = ({ radius, setRadius, selectedType, setSelectedType, selectedLocation, onSearch }) => {
   const [inputRadius, setInputRadius] = useState(radius || '');
-  const [recentLocations, setRecentLocations] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
 
   useEffect(() => {
-    // 최근 위치 데이터 가져오기
-    const fetchRecentLocations = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/locations/recent');
-        const data = await response.json();
-        setRecentLocations(data);
-      } catch (error) {
-        console.error('데이터 가져오기 실패:', error);
-      }
-    };
-
-    fetchRecentLocations();
-  }, []);
+    if (selectedLocation?.searchResults) {
+      setSearchResults(selectedLocation.searchResults);
+    } else {
+      setSearchResults([]);
+    }
+  }, [selectedLocation]);
 
   const handleRadiusChange = (e) => {
     const newValue = e.target.value;
     setInputRadius(newValue);
-    const newRadius = Number(newValue);
-    if (!isNaN(newRadius)) {
+  };
+
+  const handleRadiusBlur = () => {
+    const newRadius = Number(inputRadius);
+    if (!isNaN(newRadius) && newRadius >= 0) {
       setRadius(newRadius);
     }
   };
 
+  const handleRadiusKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    }
+  };
+
   const handleSearchClick = () => {
-    onSearch();  // 검색 실행
+    onSearch();
   };
 
   return (
@@ -47,8 +49,10 @@ const Sidebar = ({ radius, setRadius, selectedType, setSelectedType, selectedLoc
                 type="number" 
                 value={inputRadius} 
                 onChange={handleRadiusChange}
+                onBlur={handleRadiusBlur}
+                onKeyPress={handleRadiusKeyPress}
                 style={{ width: '150px' }}
-                min="-1"
+                min="0"
                 placeholder="미터 단위로 입력"
               />
             </div>
@@ -65,11 +69,11 @@ const Sidebar = ({ radius, setRadius, selectedType, setSelectedType, selectedLoc
                 onChange={(e) => setSelectedType(e.target.value)}
                 style={{ width: '150px' }}
               >
-                <option value="restaurant">음식점</option>
-                <option value="cafe">카페</option>
-                <option value="convenience_store">편의점</option>
-                <option value="pharmacy">약국</option>
-                <option value="bank">은행</option>
+                <option value="음식점">음식점</option>
+                <option value="카페">카페</option>
+                <option value="편의점">편의점</option>
+                <option value="약국">약국</option>
+                <option value="은행">은행</option>
               </select>
             </div>
           </div>
@@ -102,17 +106,18 @@ const Sidebar = ({ radius, setRadius, selectedType, setSelectedType, selectedLoc
         </button>
       </div>
 
-      <div className="recent-locations">
-        <h3>최근 등록된 위치</h3>
-        <ul className="location-list">
-          {recentLocations.map((location) => (
-            <li key={location.id} className="location-item">
-              <h4>{location.name}</h4>
-              <p>{location.address}</p>
-              <p>업종: {location.industry}</p>
-            </li>
+      <div className="search-results">
+        <div className="search-results-header">
+          <h3>검색 결과</h3>
+        </div>
+        <div className="search-results-list">
+          {searchResults.map((result, index) => (
+            <div key={index} className="search-result-item">
+              <p>{result.name}</p>
+              <p>{result.address}</p>
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   );

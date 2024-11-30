@@ -172,4 +172,9 @@
 
 .search-button:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+.search-results-list {
+  max-height: 300px;
+  overflow-y: auto;
 } 
