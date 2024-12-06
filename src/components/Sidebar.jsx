@@ -1,16 +1,7 @@
 import { useState, useEffect } from 'react';
 
-const Sidebar = ({ radius, setRadius, selectedType, setSelectedType, selectedLocation, onSearch }) => {
+const Sidebar = ({ radius, setRadius, selectedLocation, onSearch }) => {
   const [inputRadius, setInputRadius] = useState(radius || '');
-  const [searchResults, setSearchResults] = useState([]);
-
-  useEffect(() => {
-    if (selectedLocation?.searchResults) {
-      setSearchResults(selectedLocation.searchResults);
-    } else {
-      setSearchResults([]);
-    }
-  }, [selectedLocation]);
 
   const handleRadiusChange = (e) => {
     const newValue = e.target.value;
@@ -61,26 +52,6 @@ const Sidebar = ({ radius, setRadius, selectedType, setSelectedType, selectedLoc
           <div className="step">
             <div className="step-header">
               <span className="step-number">2</span>
-              <span className="step-title">업종 선택</span>
-            </div>
-            <div className="step-content">
-              <select 
-                value={selectedType} 
-                onChange={(e) => setSelectedType(e.target.value)}
-                style={{ width: '150px' }}
-              >
-                <option value="음식점">음식점</option>
-                <option value="카페">카페</option>
-                <option value="편의점">편의점</option>
-                <option value="약국">약국</option>
-                <option value="은행">은행</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="step">
-            <div className="step-header">
-              <span className="step-number">3</span>
               <span className="step-title">위치 선택</span>
             </div>
             <div className="step-content">
@@ -104,20 +75,6 @@ const Sidebar = ({ radius, setRadius, selectedType, setSelectedType, selectedLoc
         >
           검색하기
         </button>
-      </div>
-
-      <div className="search-results">
-        <div className="search-results-header">
-          <h3>검색 결과</h3>
-        </div>
-        <div className="search-results-list">
-          {searchResults.map((result, index) => (
-            <div key={index} className="search-result-item">
-              <p>{result.name}</p>
-              <p>{result.address}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

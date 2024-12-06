@@ -1,12 +1,14 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 
-const Map = ({ onLocationSelect, radius, selectedType, onSearch }) => {
+const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, ref) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
-  const storeMarkers = useRef([]);
+  const markersRef = useRef([]);
   const currentMarker = useRef(null);
   const currentCircle = useRef(null);
   const selectedLocationRef = useRef(null);
+  const markerClusterer = useRef(null);
+  const markersInfoRef = useRef({});
 
   const clearCurrentMarkerAndCircle = useCallback(() => {
     if (currentMarker.current) {
@@ -17,38 +19,116 @@ const Map = ({ onLocationSelect, radius, selectedType, onSearch }) => {
       currentCircle.current.setMap(null);
       currentCircle.current = null;
     }
-    storeMarkers.current.forEach(marker => marker.setMap(null));
-    storeMarkers.current = [];
+    if (markerClusterer.current) {
+      markerClusterer.current.clearMarkers();
+    }
+    markersRef.current = [];
   }, []);
 
-  const getCircleOptions = (industry) => {
-    let fillColor;
-    
-    if (industry === '공실') {  // industry가 '공실'인 경우
-      fillColor = '#FFFFFF';  // 흰색 채우기
-    } else if (industry === selectedType) {  // 선택된 업종
-      fillColor = '#0000FF';  // 파란색 채우기
-    } else {  // 다른 업종
-      fillColor = '#000000';  // 검은색 채우기
+  const updateMarkerStyle = useCallback((lat, lng, isHighlighted) => {
+    const key = `${lat},${lng}`;
+    const markerInfo = markersInfoRef.current[key];
+    if (markerInfo) {
+      const { marker, locationGroup } = markerInfo;
+      marker.setIcon({
+        ...marker.getIcon(),
+        fillColor: isHighlighted ? "#FFFFFF" : "#4285F4",
+      });
+      marker.setLabel({
+        ...marker.getLabel(),
+        color: isHighlighted ? "#4285F4" : "#FFFFFF",
+      });
     }
+  }, []);
 
-    return {
-      fillColor,  // 원 내부 색상
-      fillOpacity: 0.5,  // 내부 투명도 (0~1)
-      strokeWeight: 0,  // 테두리 두께를 0으로 설정하여 테두리 제거
-      scale: 0.2
-    };
-  };
+  const createMarker = useCallback((lat, lng, locationGroup, isHighlighted = false) => {
+    const marker = new window.google.maps.Marker({
+      position: { lat, lng },
+      map: mapInstance.current,
+      title: `공실 ${locationGroup.length}개`,
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: Math.max(12, Math.min(locationGroup.length * 3, 20)),
+        fillColor: isHighlighted ? "#FFFFFF" : "#4285F4",
+        fillOpacity: 0.8,
+        strokeWeight: 0,
+        strokeColor: "#4285F4",
+        labelOrigin: new window.google.maps.Point(0, 0),
+      },
+      label: {
+        text: String(locationGroup.length),
+        color: isHighlighted ? "#4285F4" : "#FFFFFF",
+        fontSize: "11px",
+        fontWeight: "bold"
+      }
+    });
+
+    const infoWindow = new window.google.maps.InfoWindow({
+      content: `
+        <div style="max-height: 300px; overflow-y: auto;">
+          <h3>총 ${locationGroup.length}개의 공실</h3>
+          ${locationGroup.map(location => `
+            <div style="border-bottom: 1px solid #eee; padding: 8px 0;">
+              <p style="font-weight: bold; margin: 4px 0;">${location.property_type}</p>
+              <p style="margin: 4px 0;">보증금: ${location.deposit}만원</p>
+              <p style="margin: 4px 0;">월세: ${location.monthly_rent}만원</p>
+              <p style="margin: 4px 0;">면적: ${location.area1}㎡</p>
+              <p style="margin: 4px 0;">층: ${location.floor_info}</p>
+            </div>
+          `).join('')}
+        </div>
+      `
+    });
+
+    marker.addListener('click', () => {
+      Object.entries(markersInfoRef.current).forEach(([markerKey, info]) => {
+        const [markerLat, markerLng] = markerKey.split(',').map(Number);
+        updateMarkerStyle(markerLat, markerLng, false);
+      });
+      
+      updateMarkerStyle(lat, lng, true);
+
+      if (onMarkerClick) {
+        onMarkerClick(lat, lng);
+      }
+      infoWindow.open(mapInstance.current, marker);
+    });
+
+    return { marker, infoWindow };
+  }, [onMarkerClick, updateMarkerStyle]);
+
+  useImperativeHandle(ref, () => ({
+    showInfoWindow: (lat, lng) => {
+      const key = `${lat},${lng}`;
+      const markerInfo = markersInfoRef.current[key];
+      if (markerInfo) {
+        const { marker, infoWindow } = markerInfo;
+        
+        Object.entries(markersInfoRef.current).forEach(([markerKey, info]) => {
+          const [markerLat, markerLng] = markerKey.split(',').map(Number);
+          updateMarkerStyle(markerLat, markerLng, false);
+        });
+        
+        updateMarkerStyle(lat, lng, true);
+        
+        infoWindow.open(mapInstance.current, marker);
+        mapInstance.current.panTo(marker.getPosition());
+      }
+    }
+  }), [updateMarkerStyle]);
 
   const performSearch = useCallback(async () => {
     if (!selectedLocationRef.current) return;
 
-    // 기존 바운더리 원 제거
+    if (markerClusterer.current) {
+      markerClusterer.current.clearMarkers();
+    }
+    markersRef.current = [];
+
     if (currentCircle.current) {
       currentCircle.current.setMap(null);
     }
-
-    // 바운더리 원 표시
+    
     const circle = new window.google.maps.Circle({
       map: mapInstance.current,
       center: selectedLocationRef.current,
@@ -56,56 +136,91 @@ const Map = ({ onLocationSelect, radius, selectedType, onSearch }) => {
       fillColor: '#FF0000',
       fillOpacity: 0.1,
       strokeColor: '#FF0000',
-      strokeOpacity: 0.8,
-      strokeWeight: 2,
+      strokeWeight: 0,
       clickable: false,
     });
     currentCircle.current = circle;
 
     try {
-      // 백엔드 API 호출
       const response = await fetch(
         `http://localhost:8000/api/locations/search?` +
         `lat=${selectedLocationRef.current.lat}&` +
         `lng=${selectedLocationRef.current.lng}&` +
-        `radius=${radius}&` +
-        `type=${selectedType}`
+        `radius=${radius}`
       );
       
       if (!response.ok) throw new Error('API 요청 실패');
       
       const locations = await response.json();
       
-      // 기존 마커 제거
-      storeMarkers.current.forEach(marker => marker.setMap(null));
-      storeMarkers.current = [];
+      const groupedLocations = locations.reduce((acc, location) => {
+        const key = `${location.latitude},${location.longitude}`;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(location);
+        return acc;
+      }, {});
 
-      // 새로운 위치 표시
-      locations.forEach(location => {
-        const circle = new window.google.maps.Circle({
-          map: mapInstance.current,
-          center: { lat: location.latitude, lng: location.longitude },
-          radius: 10,  // 원의 크기를 20에서 10미터로 줄임
-          ...getCircleOptions(location.industry)
-        });
-        storeMarkers.current.push(circle);
+      const markers = Object.entries(groupedLocations).map(([key, locationGroup]) => {
+        const [lat, lng] = key.split(',').map(Number);
+        const { marker, infoWindow } = createMarker(lat, lng, locationGroup);
+        markersInfoRef.current[key] = { marker, infoWindow, locationGroup };
+        return marker;
       });
 
-      // 검색 결과를 상위 컴포넌트로 전달할 때 기존 위치 정보 유지
+      markersRef.current = markers;
+
+      if (markerClusterer.current) {
+        markerClusterer.current.clearMarkers();
+      }
+
+      markerClusterer.current = new window.markerClusterer.MarkerClusterer({
+        map: mapInstance.current,
+        markers: markers,
+        algorithm: new window.markerClusterer.SuperClusterAlgorithm({
+          radius: 100,
+          maxZoom: 15
+        }),
+        renderer: {
+          render: ({ count, position }) => {
+            return new window.google.maps.Marker({
+              position,
+              icon: {
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: Math.max(20, Math.min(count * 5, 40)),
+                fillColor: "#4285F4",
+                fillOpacity: 0.7,
+                strokeWeight: 0,
+                strokeColor: "#FFFFFF",
+                labelOrigin: new window.google.maps.Point(0, 0),
+              },
+              label: {
+                text: String(count),
+                color: "white",
+                fontSize: "12px",
+                fontWeight: "bold"
+              },
+              zIndex: Number(window.google.maps.Marker.MAX_ZINDEX) + count,
+            });
+          }
+        }
+      });
+
       if (onLocationSelect) {
         onLocationSelect({
-          address: selectedLocationRef.current.address,  // 기존 주소 정보 유지
-          coordinates: {  // 기존 좌표 정보 유지
+          address: selectedLocationRef.current.address,
+          coordinates: {
             lat: selectedLocationRef.current.lat,
             lng: selectedLocationRef.current.lng
           },
-          searchResults: locations  // 검색 결과 추가
+          searchResults: locations
         });
       }
     } catch (error) {
       console.error('검색 실패:', error);
     }
-  }, [radius, selectedType, onLocationSelect]);
+  }, [radius, onLocationSelect, createMarker]);
 
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
@@ -165,6 +280,6 @@ const Map = ({ onLocationSelect, radius, selectedType, onSearch }) => {
       <div ref={mapRef} style={{ width: '100%', height: '100vh' }} />
     </div>
   );
-};
+});
 
 export default Map;
