@@ -1,7 +1,26 @@
 import { useState, useEffect } from 'react';
 
-const Sidebar = ({ radius, setRadius, selectedLocation, onSearch }) => {
+const Sidebar = ({ 
+  radius, 
+  setRadius, 
+  selectedLocation, 
+  onSearch, 
+  onBusinessSearch,
+  isSearchCompleted 
+}) => {
   const [inputRadius, setInputRadius] = useState(radius || '');
+  const [businessRadius, setBusinessRadius] = useState(100);
+  const [selectedBusinessType, setSelectedBusinessType] = useState('');
+  
+  const businessTypes = ["카페", "편의점", "음식점", "인테리어", "pc방", "체육관"];
+
+  useEffect(() => {
+    console.log('Current states:', {
+      isSearchCompleted,
+      selectedBusinessType,
+      businessRadius
+    });
+  }, [isSearchCompleted, selectedBusinessType, businessRadius]);
 
   const handleRadiusChange = (e) => {
     const newValue = e.target.value;
@@ -23,6 +42,16 @@ const Sidebar = ({ radius, setRadius, selectedLocation, onSearch }) => {
 
   const handleSearchClick = () => {
     onSearch();
+  };
+
+  const handleBusinessSearch = () => {
+    console.log('Business search clicked:', {
+      selectedBusinessType,
+      businessRadius
+    });
+    if (selectedBusinessType) {
+      onBusinessSearch(selectedBusinessType, businessRadius);
+    }
   };
 
   return (
@@ -66,15 +95,49 @@ const Sidebar = ({ radius, setRadius, selectedLocation, onSearch }) => {
               )}
             </div>
           </div>
-        </div>
 
-        <button 
-          className="search-button" 
-          onClick={handleSearchClick}
-          disabled={!selectedLocation}
-        >
-          검색하기
-        </button>
+          <button 
+            className="search-button" 
+            onClick={handleSearchClick}
+            disabled={!selectedLocation}
+          >
+            검색하기
+          </button>
+        </div>
+      </div>
+
+      <div className={`business-search-section ${!isSearchCompleted ? 'disabled' : ''}`}>
+        <h3>주변 상가 검색</h3>
+        <div className="step-content">
+          <select 
+            value={selectedBusinessType}
+            onChange={(e) => {
+              console.log('Business type selected:', e.target.value);
+              setSelectedBusinessType(e.target.value);
+            }}
+            style={{ width: '100%', marginBottom: '10px' }}
+          >
+            <option value="">업종 선택</option>
+            {businessTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+          <input 
+            type="number" 
+            value={businessRadius}
+            onChange={(e) => setBusinessRadius(Number(e.target.value))}
+            style={{ width: '100%', marginBottom: '10px' }}
+            min="0"
+            placeholder="반경(미터) 입력"
+          />
+          <button 
+            className="search-button"
+            onClick={handleBusinessSearch}
+            disabled={!isSearchCompleted || !selectedBusinessType}
+          >
+            주변 상가 검색
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -9,6 +9,154 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
   const selectedLocationRef = useRef(null);
   const markerClusterer = useRef(null);
   const markersInfoRef = useRef({});
+  const businessMarkersRef = useRef([]);
+  const businessCircleRef = useRef(null);
+
+  const clearBusinessMarkers = useCallback(() => {
+    businessMarkersRef.current.forEach(marker => marker.setMap(null));
+    
+    if (businessMarkersRef.current.lines) {
+      businessMarkersRef.current.lines.forEach(line => line.setMap(null));
+      businessMarkersRef.current.lines = [];
+    }
+    
+    businessMarkersRef.current = [];
+    
+    if (Array.isArray(businessCircleRef.current)) {
+      businessCircleRef.current.forEach(circle => circle.setMap(null));
+    }
+    businessCircleRef.current = [];
+  }, []);
+
+  const searchBusinesses = useCallback(async (businessType, searchRadius) => {
+    clearBusinessMarkers();
+    const allBusinesses = [];
+    const locationScores = {};
+
+    const vacantLocations = Object.keys(markersInfoRef.current).map(key => {
+      const [lat, lng] = key.split(',').map(Number);
+      return { lat, lng };
+    });
+
+    const vacantPositions = new Set(
+      vacantLocations.map(loc => `${loc.lat},${loc.lng}`)
+    );
+
+    for (const location of vacantLocations) {
+      const circle = new window.google.maps.Circle({
+        map: mapInstance.current,
+        center: location,
+        radius: searchRadius,
+        fillColor: '#00FF00',
+        fillOpacity: 0.1,
+        strokeColor: '#00FF00',
+        strokeWeight: 1,
+        clickable: false,
+      });
+      
+      if (!businessCircleRef.current) {
+        businessCircleRef.current = [];
+      }
+      businessCircleRef.current.push(circle);
+
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/businesses/search?` +
+          `lat=${location.lat}&` +
+          `lng=${location.lng}&` +
+          `radius=${searchRadius}&` +
+          `business_type=${encodeURIComponent(businessType)}`
+        );
+        
+        if (!response.ok) throw new Error('API 요청 실패');
+        
+        const businesses = await response.json();
+        allBusinesses.push(...businesses);
+
+        const locationKey = `${location.lat},${location.lng}`;
+        const scores = businesses.map(b => b.score);
+        const avgScore = scores.length > 0 
+          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+          : 0;
+        locationScores[locationKey] = avgScore;
+
+        const markers = businesses.map(business => {
+          const isOverlapping = vacantPositions.has(
+            `${business.latitude},${business.longitude}`
+          );
+
+          const originalPosition = {
+            lat: business.latitude,
+            lng: business.longitude
+          };
+
+          const position = {
+            lat: business.latitude,
+            lng: isOverlapping ? 
+              business.longitude + (0.00005) : 
+              business.longitude
+          };
+
+          if (isOverlapping) {
+            const connectionLine = new window.google.maps.Polyline({
+              path: [originalPosition, position],
+              geodesic: true,
+              strokeColor: '#00FF00',
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+              map: mapInstance.current
+            });
+
+            if (!businessMarkersRef.current.lines) {
+              businessMarkersRef.current.lines = [];
+            }
+            businessMarkersRef.current.lines.push(connectionLine);
+          }
+
+          const marker = new window.google.maps.Marker({
+            position: position,
+            map: mapInstance.current,
+            title: business.building_name || business.business_type,
+            icon: {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: '#00FF00',
+              fillOpacity: 0.8,
+              strokeWeight: 1,
+              strokeColor: '#005500',
+            }
+          });
+
+          const infoWindow = new window.google.maps.InfoWindow({
+            content: `
+              <div>
+                <h4>${business.building_name || '이름 없음'}</h4>
+                <p>업종: ${business.business_type}</p>
+                <p>주소: ${business.address}</p>
+                ${business.floor_info ? `<p>층: ${business.floor_info}</p>` : ''}
+                ${isOverlapping ? '<p style="color: #666;">* 공실과 같은 건물</p>' : ''}
+              </div>
+            `
+          });
+
+          marker.addListener('click', () => {
+            infoWindow.open(mapInstance.current, marker);
+          });
+
+          return marker;
+        });
+
+        businessMarkersRef.current.push(...markers);
+      } catch (error) {
+        console.error('상가 검색 실패:', error);
+      }
+    }
+
+    return { 
+      businesses: allBusinesses,
+      locationScores: locationScores
+    };
+  }, [clearBusinessMarkers]);
 
   const clearCurrentMarkerAndCircle = useCallback(() => {
     if (currentMarker.current) {
@@ -71,7 +219,7 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
             <div style="border-bottom: 1px solid #eee; padding: 8px 0;">
               <p style="font-weight: bold; margin: 4px 0;">${location.property_type}</p>
               <p style="margin: 4px 0;">보증금: ${location.deposit}만원</p>
-              <p style="margin: 4px 0;">월세: ${location.monthly_rent}만원</p>
+              <p style="margin: 4px 0;">월: ${location.monthly_rent}만원</p>
               <p style="margin: 4px 0;">면적: ${location.area1}㎡</p>
               <p style="margin: 4px 0;">층: ${location.floor_info}</p>
             </div>
@@ -114,8 +262,9 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
         infoWindow.open(mapInstance.current, marker);
         mapInstance.current.panTo(marker.getPosition());
       }
-    }
-  }), [updateMarkerStyle]);
+    },
+    searchBusinesses
+  }), [updateMarkerStyle, searchBusinesses]);
 
   const performSearch = useCallback(async () => {
     if (!selectedLocationRef.current) return;

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import Map from './components/Map';
 import Sidebar from './components/Sidebar';
-import VacantList from './components/VacantList';
+import TabContainer from './components/TabContainer';
 import './App.css';
 
 function App() {
@@ -11,9 +11,15 @@ function App() {
   const [highlightedLocation, setHighlightedLocation] = useState(null);
   const searchRef = useRef(null);
   const mapRef = useRef(null);
+  const [isSearchCompleted, setIsSearchCompleted] = useState(false);
+  const [businessSearchResults, setBusinessSearchResults] = useState({
+    scores: {},
+    businesses: []
+  });
 
   const handleLocationSelect = useCallback((locationInfo) => {
     setSelectedLocation(locationInfo);
+    console.log('Location selected');
     if (locationInfo?.searchResults) {
       setSearchResults(locationInfo.searchResults);
     }
@@ -22,6 +28,8 @@ function App() {
   const handleSearch = useCallback(() => {
     if (searchRef.current) {
       searchRef.current();
+      setIsSearchCompleted(true);
+      console.log('Search completed, isSearchCompleted set to true');
     }
   }, []);
 
@@ -36,6 +44,16 @@ function App() {
     }
   }, []);
 
+  const handleBusinessSearch = useCallback(async (businessType, searchRadius) => {
+    if (mapRef.current?.searchBusinesses) {
+      const { businesses, locationScores } = await mapRef.current.searchBusinesses(businessType, searchRadius);
+      setBusinessSearchResults({
+        scores: locationScores,
+        businesses: businesses
+      });
+    }
+  }, []);
+
   return (
     <div className="container">
       <Sidebar 
@@ -43,6 +61,8 @@ function App() {
         setRadius={setRadius} 
         selectedLocation={selectedLocation}
         onSearch={handleSearch}
+        onBusinessSearch={handleBusinessSearch}
+        isSearchCompleted={isSearchCompleted}
       />
       <div className="map-container">
         <Map 
@@ -53,8 +73,10 @@ function App() {
           onMarkerClick={handleMarkerClick}
         />
       </div>
-      <VacantList 
-        searchResults={searchResults} 
+      <TabContainer 
+        searchResults={searchResults}
+        businesses={businessSearchResults.businesses}
+        locationScores={businessSearchResults.scores}
         highlightedLocation={highlightedLocation}
         onItemClick={handleListItemClick}
       />
