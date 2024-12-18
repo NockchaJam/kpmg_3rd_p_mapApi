@@ -209,12 +209,6 @@
   font-weight: bold;
 }
 
-.score-0 { background-color: #ff6b6b; color: white; }
-.score-1 { background-color: #ffd43b; color: black; }
-.score-2 { background-color: #69db7c; color: white; }
-.score-3 { background-color: #4dabf7; color: white; }
-.score-4 { background-color: #845ef7; color: white; }
-
 .score-container {
   display: flex;
   align-items: center;
@@ -242,4 +236,14 @@
 .rank-3 {
   background-color: #cd7f32; /* 동색 */
   color: white;
+}
+
+.sales-level {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background-color: #f8f9fa;
+  color: #495057;
+  font-size: 0.9em;
+  margin-left: 8px;
 } 

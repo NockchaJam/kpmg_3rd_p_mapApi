@@ -54,4 +54,14 @@
 
 .business-content .value {
   color: #495057;
+}
+
+.business-count {
+  padding: 10px 15px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: bold;
+  color: #495057;
+  margin-bottom: 10px;
+  border-radius: 4px;
 } 

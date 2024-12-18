@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 
-const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, ref) => {
+const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick, onBusinessSearch }, ref) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
   const markersRef = useRef([]);
@@ -38,10 +38,6 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
       return { lat, lng };
     });
 
-    const vacantPositions = new Set(
-      vacantLocations.map(loc => `${loc.lat},${loc.lng}`)
-    );
-
     for (const location of vacantLocations) {
       const circle = new window.google.maps.Circle({
         map: mapInstance.current,
@@ -61,80 +57,49 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
 
       try {
         const response = await fetch(
-          `http://localhost:8000/api/businesses/search?` +
+          `http://localhost:8000/commercial-buildings/nearby/?` +
           `lat=${location.lat}&` +
           `lng=${location.lng}&` +
           `radius=${searchRadius}&` +
-          `business_type=${encodeURIComponent(businessType)}`
+          `industry_category=${encodeURIComponent(businessType)}`
         );
         
-        if (!response.ok) throw new Error('API 요청 실패');
+        if (!response.ok) throw new Error('상가 검색 실패');
         
         const businesses = await response.json();
-        allBusinesses.push(...businesses);
-
-        const locationKey = `${location.lat},${location.lng}`;
-        const scores = businesses.map(b => b.score);
-        const avgScore = scores.length > 0 
-          ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-          : 0;
-        locationScores[locationKey] = avgScore;
-
-        const markers = businesses.map(business => {
-          const isOverlapping = vacantPositions.has(
-            `${business.latitude},${business.longitude}`
+        businesses.forEach(newBusiness => {
+          const isDuplicate = allBusinesses.some(
+            existingBusiness => 
+              existingBusiness.latitude === newBusiness.latitude && 
+              existingBusiness.longitude === newBusiness.longitude
           );
-
-          const originalPosition = {
-            lat: business.latitude,
-            lng: business.longitude
-          };
-
-          const position = {
-            lat: business.latitude,
-            lng: isOverlapping ? 
-              business.longitude + (0.00005) : 
-              business.longitude
-          };
-
-          if (isOverlapping) {
-            const connectionLine = new window.google.maps.Polyline({
-              path: [originalPosition, position],
-              geodesic: true,
-              strokeColor: '#00FF00',
-              strokeOpacity: 0.8,
-              strokeWeight: 2,
-              map: mapInstance.current
-            });
-
-            if (!businessMarkersRef.current.lines) {
-              businessMarkersRef.current.lines = [];
-            }
-            businessMarkersRef.current.lines.push(connectionLine);
+          
+          if (!isDuplicate) {
+            allBusinesses.push(newBusiness);
           }
+        });
 
+        businesses.forEach(business => {
           const marker = new window.google.maps.Marker({
-            position: position,
+            position: { lat: business.latitude, lng: business.longitude },
             map: mapInstance.current,
-            title: business.building_name || business.business_type,
             icon: {
               path: window.google.maps.SymbolPath.CIRCLE,
               scale: 8,
-              fillColor: '#00FF00',
-              fillOpacity: 0.8,
+              fillColor: "#FF0000",
+              fillOpacity: 0.7,
               strokeWeight: 1,
-              strokeColor: '#005500',
-            }
+              strokeColor: "#FFFFFF"
+            },
+            title: `${business.industry_category}\n매출등급: ${business.sales_level}`
           });
 
           const infoWindow = new window.google.maps.InfoWindow({
             content: `
-              <div>
-                <h4>${business.building_name || '이름 없음'}</h4>
-                <p>업종: ${business.business_type}</p>
-                <p>주소: ${business.address}</p>
-                ${business.floor_info ? `<p>층: ${business.floor_info}</p>` : ''}
-                ${isOverlapping ? '<p style="color: #666;">* 공실과 같은 건물</p>' : ''}
+              <div style="padding: 10px;">
+                <h4 style="margin: 0 0 5px 0;">${business.industry_category}</h4>
+                <p style="margin: 0;">매출등급: ${business.sales_level}</p>
+                <p style="margin: 5px 0 0 0;">거리: ${Math.round(business.distance)}m</p>
               </div>
             `
           });
@@ -143,20 +108,44 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
             infoWindow.open(mapInstance.current, marker);
           });
 
-          return marker;
+          businessMarkersRef.current.push(marker);
         });
 
-        businessMarkersRef.current.push(...markers);
+        const locationKey = `${location.lat},${location.lng}`;
+        const nearbyBusinesses = businesses.filter(b => b.distance <= searchRadius);
+        
+        let validBusinessCount = 0;
+        const totalScore = nearbyBusinesses.reduce((sum, b) => {
+          if (b.sales_level) {
+            validBusinessCount++;
+            return sum + Number(b.sales_level);
+          }
+          return sum;
+        }, 0);
+        
+        const avgSalesLevel = validBusinessCount > 0 
+          ? (totalScore / validBusinessCount).toFixed(2)
+          : '0.00';
+
+        console.log(`위치 ${locationKey} 계산:`, {
+          totalScore,
+          validBusinessCount,
+          avgSalesLevel,
+          businesses: nearbyBusinesses.map(b => b.sales_level)
+        });
+
+        locationScores[locationKey] = {
+          avgSalesLevel,
+          count: validBusinessCount
+        };
+
       } catch (error) {
-        console.error('상가 검색 실패:', error);
+        console.error('상가 검색 중 오류:', error);
       }
     }
 
-    return { 
-      businesses: allBusinesses,
-      locationScores: locationScores
-    };
-  }, [clearBusinessMarkers]);
+    onBusinessSearch({ businesses: allBusinesses, scores: locationScores });
+  }, [clearBusinessMarkers, onBusinessSearch]);
 
   const clearCurrentMarkerAndCircle = useCallback(() => {
     if (currentMarker.current) {
@@ -171,7 +160,12 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
       markerClusterer.current.clearMarkers();
     }
     markersRef.current = [];
-  }, []);
+    
+    markersInfoRef.current = {};
+    
+    clearBusinessMarkers();
+    onBusinessSearch({ businesses: [], scores: {} });
+  }, [clearBusinessMarkers, onBusinessSearch]);
 
   const updateMarkerStyle = useCallback((lat, lng, isHighlighted) => {
     const key = `${lat},${lng}`;
@@ -268,6 +262,9 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
 
   const performSearch = useCallback(async () => {
     if (!selectedLocationRef.current) return;
+
+    clearBusinessMarkers();
+    onBusinessSearch({ businesses: [], scores: {} });
 
     if (markerClusterer.current) {
       markerClusterer.current.clearMarkers();
@@ -369,13 +366,13 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick }, r
     } catch (error) {
       console.error('검색 실패:', error);
     }
-  }, [radius, onLocationSelect, createMarker]);
+  }, [radius, onLocationSelect, createMarker, clearBusinessMarkers, onBusinessSearch]);
 
   useEffect(() => {
     if (!window.google || !mapRef.current) return;
 
     const initMap = new window.google.maps.Map(mapRef.current, {
-      center: { lat: 37.5665, lng: 126.9780 },
+      center: { lat: 35.8500, lng: 128.7422 },
       zoom: 14,
     });
 

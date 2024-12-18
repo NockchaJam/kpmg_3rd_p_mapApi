@@ -9,13 +9,13 @@ function App() {
   const [radius, setRadius] = useState(500);
   const [searchResults, setSearchResults] = useState([]);
   const [highlightedLocation, setHighlightedLocation] = useState(null);
+  const [businessSearchResults, setBusinessSearchResults] = useState({
+    businesses: [],
+    scores: {}
+  });
   const searchRef = useRef(null);
   const mapRef = useRef(null);
   const [isSearchCompleted, setIsSearchCompleted] = useState(false);
-  const [businessSearchResults, setBusinessSearchResults] = useState({
-    scores: {},
-    businesses: []
-  });
 
   const handleLocationSelect = useCallback((locationInfo) => {
     setSelectedLocation(locationInfo);
@@ -44,33 +44,32 @@ function App() {
     }
   }, []);
 
-  const handleBusinessSearch = useCallback(async (businessType, searchRadius) => {
-    if (mapRef.current?.searchBusinesses) {
-      const { businesses, locationScores } = await mapRef.current.searchBusinesses(businessType, searchRadius);
-      setBusinessSearchResults({
-        scores: locationScores,
-        businesses: businesses
-      });
-    }
+  const handleBusinessSearch = useCallback((results) => {
+    setBusinessSearchResults(results);
   }, []);
 
   return (
     <div className="container">
       <Sidebar 
         radius={radius} 
-        setRadius={setRadius} 
+        setRadius={setRadius}
         selectedLocation={selectedLocation}
         onSearch={handleSearch}
-        onBusinessSearch={handleBusinessSearch}
+        onBusinessSearch={(type, radius) => {
+          if (mapRef.current?.searchBusinesses) {
+            mapRef.current.searchBusinesses(type, radius);
+          }
+        }}
         isSearchCompleted={isSearchCompleted}
       />
       <div className="map-container">
         <Map 
           ref={mapRef}
-          onLocationSelect={handleLocationSelect} 
-          radius={radius} 
+          onLocationSelect={handleLocationSelect}
+          radius={radius}
           onSearch={searchRef}
           onMarkerClick={handleMarkerClick}
+          onBusinessSearch={handleBusinessSearch}
         />
       </div>
       <TabContainer 

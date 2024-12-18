@@ -11,8 +11,23 @@ const Sidebar = ({
   const [inputRadius, setInputRadius] = useState(radius || '');
   const [businessRadius, setBusinessRadius] = useState(100);
   const [selectedBusinessType, setSelectedBusinessType] = useState('');
+  const [businessTypes, setBusinessTypes] = useState([]);
   
-  const businessTypes = ["카페", "편의점", "음식점", "인테리어", "pc방", "체육관"];
+  useEffect(() => {
+    const fetchBusinessTypes = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/business-categories');
+        if (!response.ok) throw new Error('업종 목록 가져오기 실패');
+        const categories = await response.json();
+        setBusinessTypes(categories);
+        console.log('업종 목록 로드됨:', categories);
+      } catch (error) {
+        console.error('업종 목록 로드 중 오류:', error);
+      }
+    };
+
+    fetchBusinessTypes();
+  }, []);
 
   useEffect(() => {
     console.log('Current states:', {
