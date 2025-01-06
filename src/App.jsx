@@ -44,8 +44,11 @@ function App() {
     }
   }, []);
 
-  const handleBusinessSearch = useCallback((results) => {
-    setBusinessSearchResults(results);
+  const handleBusinessSearch = useCallback((businessType, searchRadius, locationScores) => {
+    setBusinessSearchResults({
+      businesses: [],
+      scores: locationScores
+    });
   }, []);
 
   return (

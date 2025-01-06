@@ -9,7 +9,7 @@ const Sidebar = ({
   isSearchCompleted 
 }) => {
   const [inputRadius, setInputRadius] = useState(radius || '');
-  const [businessRadius, setBusinessRadius] = useState(100);
+  const [inputBusinessRadius, setInputBusinessRadius] = useState('');
   const [selectedBusinessType, setSelectedBusinessType] = useState('');
   const [businessTypes, setBusinessTypes] = useState([]);
   
@@ -33,9 +33,9 @@ const Sidebar = ({
     console.log('Current states:', {
       isSearchCompleted,
       selectedBusinessType,
-      businessRadius
+      inputBusinessRadius
     });
-  }, [isSearchCompleted, selectedBusinessType, businessRadius]);
+  }, [isSearchCompleted, selectedBusinessType, inputBusinessRadius]);
 
   const handleRadiusChange = (e) => {
     const newValue = e.target.value;
@@ -59,20 +59,22 @@ const Sidebar = ({
     onSearch();
   };
 
+  const handleBusinessRadiusChange = (e) => {
+    const newValue = e.target.value;
+    setInputBusinessRadius(newValue);
+  };
+
   const handleBusinessSearch = () => {
-    console.log('Business search clicked:', {
-      selectedBusinessType,
-      businessRadius
-    });
-    if (selectedBusinessType) {
-      onBusinessSearch(selectedBusinessType, businessRadius);
+    const radius = Number(inputBusinessRadius);
+    if (selectedBusinessType && !isNaN(radius) && radius > 0) {
+      onBusinessSearch(selectedBusinessType, radius);
     }
   };
 
   return (
     <div className="sidebar">
       <div className="search-section">
-        <h3>위치 검색</h3>
+        <h3>공실 검색</h3>
         <div className="search-steps">
           <div className="step">
             <div className="step-header">
@@ -80,16 +82,31 @@ const Sidebar = ({
               <span className="step-title">반경 설정</span>
             </div>
             <div className="step-content">
-              <input 
-                type="number" 
-                value={inputRadius} 
-                onChange={handleRadiusChange}
-                onBlur={handleRadiusBlur}
-                onKeyPress={handleRadiusKeyPress}
-                style={{ width: '150px' }}
-                min="0"
-                placeholder="미터 단위로 입력"
-              />
+              <div className="search-box" style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                padding: '5px',
+                background: 'white'
+              }}>
+                <input 
+                  type="number" 
+                  value={inputRadius} 
+                  onChange={handleRadiusChange}
+                  onBlur={handleRadiusBlur}
+                  onKeyPress={handleRadiusKeyPress}
+                  style={{ 
+                    width: '90px',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '14px',
+                    padding: '0 10px'
+                  }}
+                  min="0"
+                  placeholder="반경(m)"
+                />
+              </div>
             </div>
           </div>
 
@@ -100,11 +117,7 @@ const Sidebar = ({
             </div>
             <div className="step-content">
               {selectedLocation ? (
-                <>
-                  <p><strong>주소:</strong> {selectedLocation.address}</p>
-                  <p><strong>위도:</strong> {selectedLocation.coordinates.lat.toFixed(6)}</p>
-                  <p><strong>경도:</strong> {selectedLocation.coordinates.lng.toFixed(6)}</p>
-                </>
+                <p><strong>주소:</strong> {selectedLocation.address}</p>
               ) : (
                 <p className="help-text">지도에서 위치를 선택해주세요</p>
               )}
@@ -121,34 +134,66 @@ const Sidebar = ({
         </div>
       </div>
 
-      <div className={`business-search-section ${!isSearchCompleted ? 'disabled' : ''}`}>
+      <div className="business-search-section">
         <h3>주변 상가 검색</h3>
         <div className="step-content">
           <select 
             value={selectedBusinessType}
-            onChange={(e) => {
-              console.log('Business type selected:', e.target.value);
-              setSelectedBusinessType(e.target.value);
+            onChange={(e) => setSelectedBusinessType(e.target.value)}
+            style={{ 
+              width: '100%',
+              marginBottom: '10px',
+              height: '36px',
+              padding: '0 10px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              outline: 'none',
+              fontSize: '14px'
             }}
-            style={{ width: '100%', marginBottom: '10px' }}
           >
             <option value="">업종 선택</option>
             {businessTypes.map(type => (
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
-          <input 
-            type="number" 
-            value={businessRadius}
-            onChange={(e) => setBusinessRadius(Number(e.target.value))}
-            style={{ width: '100%', marginBottom: '10px' }}
-            min="0"
-            placeholder="반경(미터) 입력"
-          />
+          <div className="search-box" style={{ 
+            display: 'flex',
+            alignItems: 'center',
+            border: '1px solid #ddd',
+            borderRadius: '8px',
+            padding: '5px',
+            background: 'white',
+            marginBottom: '10px'
+          }}>
+            <input 
+              type="number" 
+              value={inputBusinessRadius}
+              onChange={handleBusinessRadiusChange}
+              style={{ 
+                width: '90px',
+                border: 'none',
+                outline: 'none',
+                fontSize: '14px',
+                padding: '0 10px'
+              }}
+              min="0"
+              placeholder="반경(m)"
+            />
+          </div>
           <button 
             className="search-button"
             onClick={handleBusinessSearch}
-            disabled={!isSearchCompleted || !selectedBusinessType}
+            disabled={!isSearchCompleted || !selectedBusinessType || !inputBusinessRadius || !selectedLocation}
+            style={{
+              height: '36px',
+              padding: '0 15px',
+              borderRadius: '4px',
+              backgroundColor: (!isSearchCompleted || !selectedBusinessType || !inputBusinessRadius || !selectedLocation) ? '#ccc' : '#4285F4',
+              color: 'white',
+              border: 'none',
+              cursor: (!isSearchCompleted || !selectedBusinessType || !inputBusinessRadius || !selectedLocation) ? 'not-allowed' : 'pointer',
+              width: '100%'
+            }}
           >
             주변 상가 검색
           </button>

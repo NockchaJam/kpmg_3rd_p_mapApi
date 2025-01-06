@@ -38,6 +38,22 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick, onB
       return { lat, lng };
     });
 
+    // 먼저 선택된 위치의 가장 가까운 공실 3개 데이터 수집
+    if (selectedLocationRef.current) {
+      try {
+        const response = await fetch(
+          `http://localhost:8000/api/nearest-vacant-listings/?` +
+          `lat=${selectedLocationRef.current.lat}&` +
+          `lng=${selectedLocationRef.current.lng}`
+        );
+        
+        if (!response.ok) throw new Error('가까운 공실 데이터 수집 실패');
+        await response.json(); // 응답 데이터는 백엔드에서 자동 저장됨
+      } catch (error) {
+        console.error('공실 데이터 수집 중 오류:', error);
+      }
+    }
+
     for (const location of vacantLocations) {
       const circle = new window.google.maps.Circle({
         map: mapInstance.current,
@@ -67,6 +83,31 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick, onB
         if (!response.ok) throw new Error('상가 검색 실패');
         
         const businesses = await response.json();
+        const nearbyBusinesses = businesses.filter(b => b.distance <= searchRadius);
+        
+        let validBusinessCount = 0;
+        const totalScore = nearbyBusinesses.reduce((sum, b) => {
+          if (b.sales_level) {
+            validBusinessCount++;
+            return sum + (b.sales_level === '상' ? 3 : b.sales_level === '중' ? 2 : 1);
+          }
+          return sum;
+        }, 0);
+        
+        const avgSalesLevel = validBusinessCount > 0 
+          ? (totalScore / validBusinessCount).toFixed(2)
+          : '0.00';
+
+        const locationKey = `${location.lat},${location.lng}`;
+        locationScores[locationKey] = {
+          avgSalesLevel,
+          count: validBusinessCount,
+          nearbyBusinesses: nearbyBusinesses.map(business => ({
+            ...business,
+            distance: Math.round(business.distance)
+          }))
+        };
+
         businesses.forEach(newBusiness => {
           const isDuplicate = allBusinesses.some(
             existingBusiness => 
@@ -111,22 +152,6 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick, onB
           businessMarkersRef.current.push(marker);
         });
 
-        const locationKey = `${location.lat},${location.lng}`;
-        const nearbyBusinesses = businesses.filter(b => b.distance <= searchRadius);
-        
-        let validBusinessCount = 0;
-        const totalScore = nearbyBusinesses.reduce((sum, b) => {
-          if (b.sales_level) {
-            validBusinessCount++;
-            return sum + Number(b.sales_level);
-          }
-          return sum;
-        }, 0);
-        
-        const avgSalesLevel = validBusinessCount > 0 
-          ? (totalScore / validBusinessCount).toFixed(2)
-          : '0.00';
-
         console.log(`위치 ${locationKey} 계산:`, {
           totalScore,
           validBusinessCount,
@@ -134,18 +159,15 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick, onB
           businesses: nearbyBusinesses.map(b => b.sales_level)
         });
 
-        locationScores[locationKey] = {
-          avgSalesLevel,
-          count: validBusinessCount
-        };
-
       } catch (error) {
         console.error('상가 검색 중 오류:', error);
       }
     }
 
-    onBusinessSearch({ businesses: allBusinesses, scores: locationScores });
-  }, [clearBusinessMarkers, onBusinessSearch]);
+    if (onBusinessSearch) {
+      onBusinessSearch(businessType, searchRadius, locationScores);
+    }
+  }, [clearBusinessMarkers]);
 
   const clearCurrentMarkerAndCircle = useCallback(() => {
     if (currentMarker.current) {
@@ -374,6 +396,57 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick, onB
     const initMap = new window.google.maps.Map(mapRef.current, {
       center: { lat: 35.8500, lng: 128.7422 },
       zoom: 14,
+      mapTypeControl: false,
+      fullscreenControl: false,
+      styles: [
+        {
+          featureType: "all",
+          elementType: "labels.icon",
+          stylers: [{ visibility: "off" }]
+        },
+        {
+          featureType: "transit.station.rail",
+          elementType: "labels",
+          stylers: [{ visibility: "on" }]
+        },
+        {
+          featureType: "transit.station.rail",
+          elementType: "labels.text.fill",
+          stylers: [
+            { color: "#4285F4" },
+            { weight: 2 }
+          ]
+        },
+        {
+          featureType: "transit.station.rail",
+          elementType: "labels.text.stroke",
+          stylers: [
+            { color: "#ffffff" },
+            { weight: 3 }
+          ]
+        },
+        {
+          featureType: "transit.station.bus",
+          elementType: "labels",
+          stylers: [{ visibility: "on" }]
+        },
+        {
+          featureType: "transit.station.bus",
+          elementType: "labels.text.fill",
+          stylers: [
+            { color: "#34A853" },
+            { weight: 2 }
+          ]
+        },
+        {
+          featureType: "transit.station.bus",
+          elementType: "labels.text.stroke",
+          stylers: [
+            { color: "#ffffff" },
+            { weight: 3 }
+          ]
+        }
+      ]
     });
 
     mapInstance.current = initMap;
@@ -391,6 +464,12 @@ const Map = forwardRef(({ onLocationSelect, radius, onSearch, onMarkerClick, onB
         lat: event.latLng.lat(),
         lng: event.latLng.lng()
       };
+      
+      console.log('선택된 위치:', {
+        위도: location.lat,
+        경도: location.lng
+      });
+
       selectedLocationRef.current = location;
 
       const geocoder = new window.google.maps.Geocoder();

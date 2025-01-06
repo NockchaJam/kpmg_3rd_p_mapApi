@@ -239,11 +239,212 @@
 }
 
 .sales-level {
-  display: inline-block;
+  background-color: #f8f9fa;
   padding: 4px 8px;
   border-radius: 4px;
-  background-color: #f8f9fa;
-  color: #495057;
   font-size: 0.9em;
-  margin-left: 8px;
+  color: #495057;
+}
+
+.sales-level strong {
+  color: #228be6;
+  font-weight: bold;
+}
+
+.nearby-businesses {
+  margin-top: 10px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.nearby-businesses-header {
+  margin-bottom: 5px;
+}
+
+.nearby-businesses-header .label {
+  font-weight: bold;
+  color: #666;
+}
+
+.nearby-businesses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nearby-business-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.business-type {
+  flex: 2;
+}
+
+.business-sales {
+  flex: 1;
+  text-align: center;
+}
+
+.business-distance {
+  flex: 1;
+  text-align: right;
+}
+
+.analysis-section {
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.report-button {
+  width: 100%;
+  padding: 12px;
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.report-button:hover {
+  background-color: #3367d6;
+}
+
+.report-button:active {
+  background-color: #2855b3;
+}
+
+.analyze-business-button {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background-color: #4285F4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  width: 100%;
+  transition: background-color 0.2s;
+}
+
+.analyze-business-button:hover {
+  background-color: #3367D6;
+}
+
+.analyze-business-button:active {
+  background-color: #2850A7;
+}
+
+.analysis-result {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  position: relative;
+}
+
+.analysis-result p {
+  margin: 0;
+  color: #495057;
+  line-height: 1.5;
+  font-size: 14px;
+  max-height: 80px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.analysis-result.expanded p {
+  max-height: 2000px;
+}
+
+.analysis-result h4 {
+  margin: 0 0 10px 0;
+  color: #343a40;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.analysis-result:not(.expanded) p::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  background: linear-gradient(transparent, white);
+  pointer-events: none;
+}
+
+.analysis-result h4::after {
+  content: '클릭하여 더보기';
+  font-size: 12px;
+  color: #6c757d;
+  font-weight: normal;
+}
+
+.analysis-result.expanded h4::after {
+  content: '클릭하여 접기';
+}
+
+.analysis-result:hover {
+  background-color: #f8f9fa;
+}
+
+/* 시설 정보 스타일링 */
+.facilities-info,
+.subway-info,
+.other-facilities {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.facilities-info h4,
+.subway-info h4,
+.other-facilities h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.95em;
+  color: #495057;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 5px;
+}
+
+.facility-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 0.9em;
+}
+
+.facility-item .label {
+  color: #6c757d;
+}
+
+.facility-item .value {
+  font-weight: 500;
+  color: #495057;
+}
+
+/* 값이 0인 경우 스타일 */
+.facility-item .value.zero {
+  color: #adb5bd;
+}
+
+/* 지하철 거리 강조 */
+.subway-info .value {
+  color: #228be6;
 } 
